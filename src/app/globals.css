@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/*
+  Design tokens. Change the brand here and every page follows.
+  Usage in Tailwind: bg-paper, text-ink, text-muted, border-line, bg-accent…
+*/
+@theme {
+  --color-paper: #f7f4ee; /* warm off-white background */
+  --color-card: #fffdf9;
+  --color-ink: #1b1a17; /* primary text */
+  --color-muted: #6f6a60; /* secondary text */
+  --color-line: #e4ded3; /* hairline borders */
+  --color-accent: #a4472b; /* terracotta — used sparingly */
+  --color-accent-soft: #f1dfd6;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-paper);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+
+/* Visible keyboard focus everywhere, invisible for mouse/touch. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* Hide horizontal scrollbars on chip rows while keeping them scrollable. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

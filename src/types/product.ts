@@ -34,9 +34,15 @@ export type Product = {
   originalTitle?: string; // Chinese title as a seller might list it
   description: string; // English description
   category: Category;
+  /** Specific garment noun, e.g. "maxi skirt". Used by inspiration matching. */
+  garment: string;
   styles: StyleTag[];
   colors: string[];
   materials: string[];
+  /** Shape words, e.g. ["fitted", "low-rise", "maxi"]. */
+  silhouette: string[];
+  /** Distinctive design details, e.g. ["square neckline", "frog buttons"]. */
+  details: string[];
   tags: string[]; // extra searchable keywords
   /** Illustrative demo price. Not a real listing price. */
   price: { amount: number; currency: "CNY" } | null;

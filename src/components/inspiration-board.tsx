@@ -1,82 +1,127 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { STYLES } from "@/data/taxonomy";
-import type { StyleTag } from "@/types/product";
+import type { MatchResponse } from "@/lib/matching/types";
+import { resizeImage } from "@/lib/resize-image";
+import { MatchResults } from "./match-results";
 import { CloseIcon, UploadIcon } from "./icons";
 
-// Images are previewed locally with object URLs. Nothing is uploaded to a
-// server, and nothing is analysed — visual search is a future milestone.
-// When it exists, this component will send the files to an API route and
-// show matches instead of asking for a text description.
+// One inspiration image → POST /api/match → ranked matches.
+// The flow is a small state machine: empty → selected → analysing → results | error.
 
-const MAX_FILES = 8;
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_BYTES = 10 * 1024 * 1024; // before resizing in the browser
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
 
-type Pin = { id: string; url: string; name: string; broken?: boolean };
+type Selected = { file: File; url: string };
+type Phase = "selected" | "analysing" | "results" | "error";
 
 export function InspirationBoard() {
-  const [pins, setPins] = useState<Pin[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Selected | null>(null);
+  const [phase, setPhase] = useState<Phase>("selected");
+  const [result, setResult] = useState<MatchResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [description, setDescription] = useState("");
-  const [style, setStyle] = useState<StyleTag | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestRef = useRef<AbortController | null>(null);
 
-  // Free the browser memory used by previews when leaving the page.
-  const pinsRef = useRef<Pin[]>([]);
+  // Free the preview's memory and cancel any request when the image changes or we leave.
   useEffect(() => {
-    pinsRef.current = pins;
-  }, [pins]);
-  useEffect(() => () => pinsRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+    if (!selected) return;
+    return () => URL.revokeObjectURL(selected.url);
+  }, [selected]);
+  useEffect(() => () => requestRef.current?.abort(), []);
 
-  function addFiles(fileList: FileList | null) {
-    if (!fileList) return;
-    const nextErrors: string[] = [];
-    const accepted: Pin[] = [];
-    let room = MAX_FILES - pins.length;
-
-    for (const file of Array.from(fileList)) {
-      if (!ACCEPTED.includes(file.type)) {
-        nextErrors.push(`“${file.name}” isn't a supported image (use JPG, PNG, WebP, GIF or AVIF).`);
-      } else if (file.size > MAX_BYTES) {
-        nextErrors.push(`“${file.name}” is larger than 10 MB.`);
-      } else if (room <= 0) {
-        nextErrors.push(`You can pin up to ${MAX_FILES} images. “${file.name}” was skipped.`);
-      } else {
-        accepted.push({ id: crypto.randomUUID(), url: URL.createObjectURL(file), name: file.name });
-        room--;
-      }
+  function choose(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    if (!ACCEPTED.includes(file.type)) {
+      setError(`“${file.name}” isn't a supported image. Use JPG, PNG, WebP, GIF or AVIF.`);
+      return; // keep any current selection as it was
     }
-
-    setPins((prev) => [...prev, ...accepted]);
-    setErrors(nextErrors);
+    if (file.size > MAX_BYTES) {
+      setError(`“${file.name}” is larger than 10 MB.`);
+      return;
+    }
+    requestRef.current?.abort();
+    setSelected({ file, url: URL.createObjectURL(file) });
+    setResult(null);
+    setError(null);
+    setPhase("selected");
   }
 
-  function removePin(id: string) {
-    setPins((prev) => {
-      const pin = prev.find((p) => p.id === id);
-      if (pin) URL.revokeObjectURL(pin.url);
-      return prev.filter((p) => p.id !== id);
-    });
+  function reset() {
+    requestRef.current?.abort();
+    setSelected(null);
+    setResult(null);
+    setError(null);
+    setPhase("selected");
   }
 
-  const searchParams = new URLSearchParams();
-  if (description.trim()) searchParams.set("q", description.trim());
-  if (style) searchParams.set("style", style);
-  const searchHref = `/discover${searchParams.size ? `?${searchParams}` : ""}`;
-  const canSearch = Boolean(description.trim() || style);
+  async function findMatches() {
+    if (!selected) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setPhase("analysing");
+    setError(null);
+
+    try {
+      const body = new FormData();
+      const image = await resizeImage(selected.file);
+      body.append("image", image, selected.file.name);
+
+      const res = await fetch("/api/match", { method: "POST", body, signal: controller.signal });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Something went wrong. Please try again.");
+
+      setResult(data as MatchResponse);
+      setPhase("results");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      if (controller.signal.aborted) return; // user moved on; not an error
+      // fetch() throws a TypeError for network failures; our own errors carry a readable message.
+      const offline = err instanceof TypeError || !(err instanceof Error) || !err.message;
+      setError(offline ? "Couldn't reach the server. Check your connection and try again." : err.message);
+      setPhase("error");
+    }
+  }
+
+  if (phase === "results" && result && selected) {
+    return <MatchResults imageUrl={selected.url} imageName={selected.file.name} result={result} onReset={reset} />;
+  }
+
+  const analysing = phase === "analysing";
 
   return (
-    <div className="grid gap-10 md:grid-cols-[1.4fr_1fr] md:gap-14">
-      {/* ── Board ─────────────────────────────────────────── */}
-      <section aria-labelledby="board-heading">
-        <h2 id="board-heading" className="sr-only">
-          Your inspiration board
-        </h2>
-
+    <div className="mx-auto max-w-xl">
+      {selected ? (
+        <figure className="relative overflow-hidden rounded-[28px] bg-line/50">
+          {/* next/image can't optimise local blob: URLs. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={selected.url}
+            alt={`Your inspiration: ${selected.file.name}`}
+            className={`block max-h-[560px] w-full object-cover transition-opacity ${analysing ? "opacity-60" : ""}`}
+          />
+          {analysing && (
+            <div className="absolute inset-0 grid place-items-center" role="status">
+              <span className="rounded-full bg-card/95 px-5 py-2.5 text-sm shadow-sm">
+                <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />
+                Reading the look…
+              </span>
+            </div>
+          )}
+          {!analysing && (
+            <button
+              type="button"
+              onClick={reset}
+              aria-label="Remove image"
+              className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-card/90 text-ink shadow-sm"
+            >
+              <CloseIcon width={16} height={16} />
+            </button>
+          )}
+        </figure>
+      ) : (
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -86,142 +131,72 @@ export function InspirationBoard() {
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            addFiles(e.dataTransfer.files);
+            choose(e.dataTransfer.files);
           }}
-          className={`rounded-3xl border-2 border-dashed p-6 text-center transition-colors md:p-10 ${
+          className={`rounded-[28px] border-2 border-dashed px-6 py-14 text-center transition-colors ${
             dragging ? "border-ink bg-card" : "border-line"
           }`}
         >
           <UploadIcon width={28} height={28} className="mx-auto text-muted" />
-          <p className="mt-3 font-serif text-2xl">Pin your inspiration</p>
-          <p className="mx-auto mt-1 max-w-xs text-sm text-muted">
-            Screenshots from Pinterest, Instagram or Xiaohongshu. Up to {MAX_FILES} images, 10 MB each.
+          <p className="mt-3 font-serif text-3xl">Add one inspiration image</p>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted">
+            A screenshot from Pinterest, Instagram or Xiaohongshu. JPG, PNG, WebP, GIF or AVIF, up to 10 MB.
           </p>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={pins.length >= MAX_FILES}
-            className="mt-5 inline-flex h-11 items-center rounded-full bg-ink px-6 text-sm text-paper disabled:opacity-40"
+            className="mt-6 inline-flex h-12 items-center rounded-full bg-ink px-7 text-sm text-paper"
           >
-            Choose images
+            Choose an image
           </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPTED.join(",")}
-            multiple
-            className="sr-only"
-            tabIndex={-1}
-            aria-label="Choose inspiration images"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = ""; // allow choosing the same file again
-            }}
-          />
-          <p className="mt-4 text-xs text-muted">Your images stay on this device and aren&apos;t uploaded.</p>
         </div>
+      )}
 
-        {errors.length > 0 && (
-          <ul role="alert" className="mt-4 space-y-1 rounded-2xl bg-accent-soft px-4 py-3 text-sm text-accent">
-            {errors.map((err) => (
-              <li key={err}>{err}</li>
-            ))}
-          </ul>
-        )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED.join(",")}
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Choose an inspiration image"
+        onChange={(e) => {
+          choose(e.target.files);
+          e.target.value = ""; // allow choosing the same file again
+        }}
+      />
 
-        {pins.length > 0 && (
-          <div className="mt-6 columns-2 gap-3 md:columns-3">
-            {pins.map((pin) => (
-              <figure key={pin.id} className="group relative mb-3 break-inside-avoid overflow-hidden rounded-2xl bg-line/50">
-                {pin.broken ? (
-                  <div className="flex aspect-square items-center justify-center p-4 text-center text-xs text-muted">
-                    Couldn&apos;t preview “{pin.name}”
-                  </div>
-                ) : (
-                  // A plain <img> is right here: next/image can't optimise local blob: URLs.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={pin.url}
-                    alt={`Inspiration image: ${pin.name}`}
-                    className="block w-full"
-                    onError={() =>
-                      setPins((prev) => prev.map((p) => (p.id === pin.id ? { ...p, broken: true } : p)))
-                    }
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => removePin(pin.id)}
-                  aria-label={`Remove ${pin.name}`}
-                  className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-card/90 text-ink shadow-sm"
-                >
-                  <CloseIcon width={15} height={15} />
-                </button>
-              </figure>
-            ))}
-          </div>
-        )}
-      </section>
+      {error && (
+        <p role="alert" className="mt-4 rounded-2xl bg-accent-soft px-4 py-3 text-sm text-accent">
+          {error}
+        </p>
+      )}
 
-      {/* ── Describe & search ─────────────────────────────── */}
-      <section aria-labelledby="describe-heading" className="md:sticky md:top-24 md:self-start">
-        <div className="rounded-3xl bg-card p-6 md:p-8">
-          <p className="inline-flex rounded-full bg-accent-soft px-3 py-1 text-xs text-accent">
-            Visual matching coming soon
-          </p>
-          <h2 id="describe-heading" className="mt-4 font-serif text-3xl leading-tight">
-            Tell us what you love about these looks
-          </h2>
-          <p className="mt-2 text-sm text-muted">
-            We can&apos;t read images yet, so we&apos;ll search the demo catalogue using your words.
-          </p>
-
-          <label htmlFor="inspo-description" className="mt-6 block text-xs uppercase tracking-[0.14em] text-muted">
-            Describe it
-          </label>
-          <textarea
-            id="inspo-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            placeholder="e.g. flowy neutral linen, relaxed but put-together"
-            className="mt-2 w-full resize-none rounded-2xl border border-line bg-paper px-4 py-3 text-[15px] outline-none placeholder:text-muted/70 focus:border-ink"
-          />
-
-          <p className="mt-5 text-xs uppercase tracking-[0.14em] text-muted">Closest aesthetic</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {STYLES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={style === s.id}
-                onClick={() => setStyle(style === s.id ? null : s.id)}
-                className={`h-9 rounded-full border px-3.5 text-sm transition-colors ${
-                  style === s.id ? "border-ink bg-ink text-paper" : "border-line bg-paper hover:border-ink"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {canSearch ? (
-            <Link
-              href={searchHref}
-              className="mt-7 flex h-12 w-full items-center justify-center rounded-full bg-ink text-sm text-paper"
-            >
-              Find similar pieces
-            </Link>
-          ) : (
-            <span
-              aria-disabled
-              className="mt-7 flex h-12 w-full cursor-not-allowed items-center justify-center rounded-full bg-line text-sm text-muted"
-            >
-              Add a description or aesthetic to search
-            </span>
-          )}
+      {selected && (
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={findMatches}
+            disabled={analysing}
+            className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-ink px-6 text-sm text-paper disabled:opacity-60"
+          >
+            {analysing ? "Finding matches…" : phase === "error" ? "Try again" : "Find matches"}
+          </button>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={analysing}
+            className="inline-flex h-12 items-center justify-center rounded-full border border-line px-6 text-sm hover:border-ink disabled:opacity-60"
+          >
+            Choose a different image
+          </button>
         </div>
-      </section>
+      )}
+
+      <p className="mt-5 text-center text-xs leading-relaxed text-muted">
+        Your image is sent to our server only to find matches. It isn&apos;t stored.
+        <br />
+        Prototype: the image analysis is currently a demo and all products are fictional.
+      </p>
     </div>
   );
 }

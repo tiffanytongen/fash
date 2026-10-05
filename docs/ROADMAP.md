@@ -15,6 +15,15 @@ Goal: a real, runnable prototype we can put in front of users.
 - [ ] Deploy a preview (e.g. Vercel) so testers can open it on their phones
 - [ ] Run 5–10 user tests (see assumptions in PRODUCT.md)
 
+## Milestone 1.5 — Inspiration matching vertical slice ✅
+
+- [x] One-image upload with preview, validation and browser-side resizing
+- [x] `POST /api/match` running analyse → search → rank
+- [x] Mocked `analyzeInspiration()` (5 sample looks), clearly labelled
+- [x] Results: interpretation, copyable Taobao keywords, ranked matches with % and reason
+- [x] Catalogue extended to 28 items with garment, silhouette and details metadata
+- [ ] Replace the mock with a real vision model (first item of Milestone 3)
+
 ## Milestone 2 — Real, curated catalogue
 
 Goal: replace demo items with a small set of real, permission-cleared products.
@@ -31,7 +40,8 @@ Goal: replace demo items with a small set of real, permission-cleared products.
 Goal: one AI feature that clearly helps, chosen from user-test learnings.
 
 Options (pick one):
-- [ ] **Visual search** — upload a screenshot, get similar catalogue items (image embeddings + vector search in Supabase `pgvector`)
+- [ ] **Real image analysis** — swap the mock `analyzeInspiration()` for a vision model (the pipeline and UI already exist)
+- [ ] **Visual search** — image embeddings + vector search to replace attribute ranking
 - [ ] **Smarter text search** — semantic search over descriptions (text embeddings)
 - [ ] **Translation pipeline** — turn Chinese listing text into clean English titles, descriptions and size notes
 

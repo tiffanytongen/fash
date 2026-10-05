@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Category, Product, StyleTag } from "@/types/product";
 import { CATEGORIES, STYLES } from "@/data/taxonomy";
-import { searchProducts } from "@/lib/search";
+import { searchCatalog } from "@/lib/search";
 import { ProductGrid } from "./product-card";
 import { CloseIcon, SearchIcon } from "./icons";
 
@@ -53,7 +53,7 @@ function DiscoverInner({ products, initialQuery, initialCategory, initialStyle }
 
   // Results update instantly as you type.
   const results = useMemo(
-    () => searchProducts(products, { query, category, style }),
+    () => searchCatalog(products, { query, category, style }),
     [products, query, category, style],
   );
 

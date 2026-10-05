@@ -2,7 +2,7 @@
 
 An AI-assisted fashion discovery platform that makes Chinese fashion — especially Taobao — accessible to English-speaking shoppers in Malaysia and Australia.
 
-> **Status: early prototype.** Every product is a fictional demo item with an illustrated placeholder image. There are no real Taobao listings, prices, ratings or seller scores, and visual (image) search is not built yet.
+> **Status: early prototype.** Every product is a fictional demo item with an illustrated placeholder image. There are no real Taobao listings, prices, ratings or seller scores. The image analysis step is **mocked**: it returns one of five sample looks, not a reading of your photo.
 
 ## What works today
 
@@ -11,7 +11,7 @@ An AI-assisted fashion discovery platform that makes Chinese fashion — especia
 | Landing | `/` | Explains the product. The search box hands off to Discover. |
 | Discover | `/discover` | Masonry product grid with live text search plus category and aesthetic filters. Filters are saved in the URL (`?q=&category=&style=`). |
 | Product | `/products/[id]` | Image gallery, English description, demo price, sizes, sizing tip, details, save button. |
-| Inspiration | `/inspiration` | Pin images (local preview only), describe the look and search by text. |
+| Inspiration | `/inspiration` | Upload one image → interpretation, Taobao search keywords and ranked matches with a % score and a one-line reason. Analysis is mocked (see below). |
 | Saved | `/saved` | Items you've hearted, stored in this browser's `localStorage`. |
 
 ## Tech stack
@@ -49,7 +49,8 @@ src/
     page.tsx            Landing
     discover/           Search + grid
     products/[id]/      Product details (+ not-found)
-    inspiration/        Image board
+    inspiration/        Upload one image → matches
+    api/match/          POST endpoint: image in, analysis + ranked matches out
     saved/              Saved items
     error.tsx           App-wide error screen
     not-found.tsx       App-wide 404
@@ -57,11 +58,30 @@ src/
   data/                 Mock catalogue + category/style lists
   lib/
     catalog.ts          Data access — the only place that touches product data
-    search.ts           Keyword search + ranking (pure function)
+    search.ts           Discover keyword search (searchCatalog)
+    matching/           Inspiration pipeline (see below)
+    resize-image.ts     Shrinks photos in the browser before upload
     saved-items.ts      localStorage saved-items hook
   types/product.ts      The Product data model
 docs/                   Product, roadmap, decisions, build log
 ```
+
+## Inspiration matching pipeline
+
+```
+image ──▶ analyzeInspiration() ──▶ searchProducts() ──▶ rankProducts() ──▶ results
+          (MOCK: sample looks)     (demo catalogue)     (attribute overlap)
+```
+
+All in `src/lib/matching/`. Each step has one job and a typed input/output (`types.ts`), so it can be replaced on its own:
+
+| Step | Today | Later |
+| --- | --- | --- |
+| `analyzeInspiration(image)` | Picks one of 5 sample looks (`src/data/mock-looks.ts`) from the image's fingerprint. **Does not look at the image.** | Multimodal vision model returning the same JSON shape |
+| `searchProducts(analysis)` | Loose filter over the demo catalogue | Real product retrieval (e.g. Taobao / affiliate API) |
+| `rankProducts(analysis, candidates)` | Weighted attribute overlap + one-line explanation | Embedding / visual similarity |
+
+`matchInspiration()` in `index.ts` runs the three in order; `POST /api/match` calls it.
 
 ## Documentation
 

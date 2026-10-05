@@ -48,7 +48,7 @@ export default async function HomePage() {
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <Link href="/inspiration" className="underline decoration-line underline-offset-4 hover:decoration-ink">
-              Or upload inspiration images
+              Or upload an inspiration image
             </Link>
             <Link href="/discover" className="text-muted hover:text-ink">
               Browse everything →
@@ -143,14 +143,14 @@ export default async function HomePage() {
           Have a board full of looks you can&apos;t find?
         </h2>
         <p className="mx-auto mt-4 max-w-md text-sm text-paper/70">
-          Pin your inspiration and tell us what you love. Visual matching is coming — for now we
-          search by your description.
+          Upload one look and we&apos;ll suggest Taobao keywords and rank the closest pieces. Image
+          analysis is a demo for now.
         </p>
         <Link
           href="/inspiration"
           className="mt-8 inline-flex h-12 items-center rounded-full bg-paper px-7 text-sm text-ink"
         >
-          Start an inspiration board
+          Find the look
         </Link>
       </section>
     </>

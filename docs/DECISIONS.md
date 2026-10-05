@@ -42,7 +42,7 @@ products(id text pk, title text, original_title text, description text,
 **Decision:** Store an array of product ids under `tfd:saved-items:v1` using a `useSyncExternalStore` hook.
 **Why:** No accounts needed yet. The hook keeps tabs in sync and avoids hydration errors. The `v1` in the key lets us migrate the format later.
 
-### 008 — Inspiration uploads stay on the device
+### 008 — Inspiration uploads stay on the device *(superseded by 012)*
 **Decision:** Images are previewed with `URL.createObjectURL` and never uploaded. The page says clearly that visual matching isn't built and asks the user to describe the look instead.
 **Why:** No server, storage or AI costs, no privacy risk, and no pretending. When visual search arrives, the board will POST images to an API route (`src/app/api/...`) that calls the AI service server-side, so API keys never reach the browser.
 
@@ -53,3 +53,21 @@ products(id text pk, title text, original_title text, description text,
 ### 010 — No product loading screen
 **Decision:** Removed `products/[id]/loading.tsx`.
 **Why:** Product pages are pre-built, so it never appeared — and it caused missing products to return HTTP 200 instead of 404. Re-add a loading state when product data is fetched live.
+
+### 011 — Inspiration matching as three replaceable steps
+**Decision:** `analyzeInspiration()` → `searchProducts()` → `rankProducts()` in `src/lib/matching/`, joined by typed contracts (`types.ts`) and run by `matchInspiration()`.
+**Why:** Each step will be replaced by something very different (vision model, Taobao retrieval, embeddings). Keeping them separate means each swap touches one file.
+**Rename:** the old Discover keyword search was also called `searchProducts()`. It is now `searchCatalog()` to avoid confusion.
+
+### 012 — The image goes to our server (not stored)
+**Decision:** The browser shrinks the image (max 1280px JPEG) and POSTs it to `/api/match`. The route keeps it in memory for the request only.
+**Why:** A real vision model must be called server-side so the API key stays secret. Doing the upload now means swapping in the model doesn't change the UI. Shrinking keeps uploads fast and under hosting limits (Vercel functions accept ~4.5 MB). We use a route handler, not a Server Action, because Server Actions cap bodies at 1 MB by default.
+
+### 013 — Honest mock analysis
+**Decision:** The mock returns one of five sample looks chosen by a SHA-256 fingerprint of the image (same image → same look). The response carries `isMockAnalysis: true` and the results show a "Demo analysis" label.
+**Why:** It lets us test the whole results experience without paying for AI, without pretending we read the photo.
+
+### 014 — Ranking by weighted attribute overlap
+**Decision:** Per dimension score, then a weighted average: garment 35%, colour 20%, silhouette 15%, details 15%, style 10%, material 5%. Set dimensions use the *overlap coefficient* (shared ÷ smaller set), because an outfit analysis lists several garments while a product is one. Dimensions the analysis leaves empty or "unknown" are skipped. Words are normalised first (`vocabulary.ts`: "minimalist" → minimal, charcoal → grey). Matches under 30% are hidden; display is capped at 99%.
+**Why:** Simple, explainable, and every point of the score can be traced to a reason shown to the user.
+**Trade-off:** It's only as good as the metadata. It can't see that two items *look* alike.

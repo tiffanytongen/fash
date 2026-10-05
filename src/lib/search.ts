@@ -4,7 +4,7 @@ import type { Category, Product, StyleTag } from "@/types/product";
 // It is deliberately "dumb but predictable": we tokenise the query, expand a
 // few synonyms, and score each product by where the words appear.
 // Later this can be swapped for Postgres full-text search or embeddings
-// without changing the UI, because the UI only calls `searchProducts`.
+// without changing the UI, because the UI only calls `searchCatalog`.
 
 export type SearchFilters = {
   query?: string;
@@ -100,7 +100,7 @@ function scoreProduct(product: Product, groups: string[][]): number {
  * Returns products matching the filters, best matches first.
  * With no query, returns every product that passes the category/style filters.
  */
-export function searchProducts(products: Product[], filters: SearchFilters): Product[] {
+export function searchCatalog(products: Product[], filters: SearchFilters): Product[] {
   const filtered = products.filter(
     (p) =>
       (!filters.category || p.category === filters.category) &&

@@ -4,6 +4,36 @@ Newest entries at the top. Keep each entry short: what changed, what we learned,
 
 ---
 
+## 2026-10-05 — Pivot to concierge MVP
+
+**Why:** Validate demand for curated Taobao shortlists before automating.
+
+**Built**
+- `/inspiration` is now a concierge request form (image, note, budget, size, measurements, fit, Find this / Find my vibe, notes) with inline validation and a success state + request ID.
+- `POST /api/requests`, `GET /api/requests/[id]/image`; shared validator (`src/lib/requests/validate.ts`).
+- Dev-only file store (`src/lib/requests/store.ts`, `.data/`), unguessable `req_…` IDs.
+- `/requests/[id]`: inspiration, preferences, status timeline, then pending state or 3–5 curated picks (why it matches, shop, reviews, sizing, curator note, Taobao button).
+- Types: `CurationRequest`, `CuratedResult` (with `source`), `CuratedProduct` (`src/types/curation.ts`).
+- `npm run curate` helper + template + labelled demo shortlist.
+- Automated matcher moved to `/labs/auto-match` (unchanged, not linked). Landing copy updated to the concierge offer.
+- `npm run typecheck` now regenerates route types first, so it works in a fresh clone.
+
+**Verified**
+- Lint, typecheck, build: pass with no warnings.
+- API via curl: 201 / 400 / 415 / 422 / 404 cases, path traversal blocked.
+- Curation helper: status changes, 3–5 rule, Taobao-URL rule, overwrite protection.
+- Headless browser, phone + desktop: 84/84 checks — form validation, submit, success, my-requests, pending/reviewing/demo/curated/completed states, link safety, no automation wording on live pages, 404, lab page and Discover still work, no console errors.
+
+**Fixed along the way**
+- Measurements panel collapsed while typing once an error was fixed.
+- Build warning: the file store made the bundler trace the whole project.
+
+**Not yet tested**
+- Real phones; deployed hosting (storage is local-only by design); real Taobao listing images (hotlink behaviour).
+
+**Next**
+- Database-backed store + contact field, then run the concierge with real shoppers.
+
 ## 2026-10-05 — Inspiration matching vertical slice
 
 **Built**

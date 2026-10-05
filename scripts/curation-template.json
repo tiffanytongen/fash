@@ -1,0 +1,22 @@
+{
+  "_howTo": "Copy this file, replace every value, delete products you don't need (keep 3–5), then run: npm run curate -- attach <request-id> <your-file>.json. Delete the _howTo line or leave it; it's ignored.",
+  "curatorName": "Your first name",
+  "summary": "One or two friendly sentences about how you approached their look.",
+  "products": [
+    {
+      "title": "Short English title, e.g. White square-neck fitted top",
+      "image": { "url": "https://… (listing photo URL, or null)", "alt": "Describe the photo for screen readers" },
+      "taobaoUrl": "https://item.taobao.com/item.htm?id=…",
+      "priceCny": 89,
+      "convertedPrice": { "amount": 57, "currency": "MYR" },
+      "shop": { "name": "Shop name as shown on Taobao", "qualityNote": "e.g. 4 years open, consistent photos, replies in English via translation" },
+      "reviewNote": "e.g. Reviewers say the fabric is thicker than expected; colour matches photos.",
+      "availableSizes": ["S", "M", "L"],
+      "sizingNote": "e.g. Runs small — for their usual M, suggest L. Bust 86 cm on size M.",
+      "whyItMatches": "e.g. Same square neckline and close fit as their inspiration.",
+      "matchType": "exact-ish",
+      "curatorNote": "Anything personal, or \"\" for none.",
+      "tags": ["optional", "tags"]
+    }
+  ]
+}

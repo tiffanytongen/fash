@@ -2,7 +2,13 @@
 
 An AI-assisted fashion discovery platform that makes Chinese fashion — especially Taobao — accessible to English-speaking shoppers in Malaysia and Australia.
 
-> **Status: early prototype.** Every product is a fictional demo item with an illustrated placeholder image. There are no real Taobao listings, prices, ratings or seller scores. The image analysis step is **mocked**: it returns one of five sample looks, not a reading of your photo.
+> **Current MVP: manual concierge curation.** A shopper sends one inspiration image and a few preferences; a person hand-picks 3–5 Taobao items and adds them to the shopper's request page. Nothing is matched automatically.
+>
+> **Core validation question:** *Will users value receiving a curated shortlist of Taobao items based on their inspiration?*
+>
+> **Long-term direction:** a personalised inspiration-to-Taobao discovery engine. Future layers: (1) curated shop database, (2) automated retrieval, (3) personalisation, (4) swipe taste onboarding, (5) sizing / fit assistant. See [docs/PRODUCT.md](docs/PRODUCT.md).
+>
+> Discover and product pages use a **fictional demo catalogue**. Request storage is **local-only** for now.
 
 ## What works today
 
@@ -11,7 +17,9 @@ An AI-assisted fashion discovery platform that makes Chinese fashion — especia
 | Landing | `/` | Explains the product. The search box hands off to Discover. |
 | Discover | `/discover` | Masonry product grid with live text search plus category and aesthetic filters. Filters are saved in the URL (`?q=&category=&style=`). |
 | Product | `/products/[id]` | Image gallery, English description, demo price, sizes, sizing tip, details, save button. |
-| Inspiration | `/inspiration` | Upload one image → interpretation, Taobao search keywords and ranked matches with a % score and a one-line reason. Analysis is mocked (see below). |
+| Request a shortlist | `/inspiration` | **Main flow.** One image + note, budget, size, measurements, fit, "Find this"/"Find my vibe", notes → request saved → success screen with request ID. |
+| Request page | `/requests/[id]` | Inspiration image, preferences, status, then the hand-curated picks (or a pending state). |
+| Auto-match (lab) | `/labs/auto-match` | Experimental automated matcher (mocked analysis, demo catalogue). Not linked; kept for future automation. |
 | Saved | `/saved` | Items you've hearted, stored in this browser's `localStorage`. |
 
 ## Tech stack
@@ -49,8 +57,11 @@ src/
     page.tsx            Landing
     discover/           Search + grid
     products/[id]/      Product details (+ not-found)
-    inspiration/        Upload one image → matches
-    api/match/          POST endpoint: image in, analysis + ranked matches out
+    inspiration/        Concierge request form
+    requests/[id]/      Request page: pending state or curated picks
+    labs/auto-match/    Experimental automated matcher (not linked)
+    api/requests/       POST: create a request · [id]/image: GET its image
+    api/match/          POST: automated matcher (used by the lab page)
     saved/              Saved items
     error.tsx           App-wide error screen
     not-found.tsx       App-wide 404
@@ -59,14 +70,35 @@ src/
   lib/
     catalog.ts          Data access — the only place that touches product data
     search.ts           Discover keyword search (searchCatalog)
-    matching/           Inspiration pipeline (see below)
+    requests/           Concierge: store (dev file store), validation, my-requests
+    matching/           Automated pipeline for later (see below)
     resize-image.ts     Shrinks photos in the browser before upload
     saved-items.ts      localStorage saved-items hook
-  types/product.ts      The Product data model
+  types/product.ts      The Product data model (demo catalogue)
+  types/curation.ts     CurationRequest, CuratedResult, CuratedProduct
+scripts/curate.mjs      Manual curation helper (npm run curate)
 docs/                   Product, roadmap, decisions, build log
 ```
 
-## Inspiration matching pipeline
+## Curating a request (manual workflow)
+
+Requests are stored locally in `.data/` (git-ignored) while you run `npm run dev` or `npm run start`.
+
+```bash
+npm run curate -- list                         # see incoming requests
+npm run curate -- show <id>                    # details + path to the image
+npm run curate -- status <id> reviewing        # shopper sees "Being curated"
+cp scripts/curation-template.json my-picks.json  # fill in 3–5 real picks
+npm run curate -- attach <id> my-picks.json    # shopper sees the shortlist
+npm run curate -- status <id> completed
+npm run curate -- demo <id>                    # (dev) attach a clearly labelled demo shortlist
+```
+
+Each pick needs a real `https://` Taobao/Tmall link. The helper checks this and the 3–5 count. Use `--force` to replace an existing shortlist.
+
+> ⚠️ This storage does not work on serverless hosting (e.g. Vercel). Real users need a database first; only `src/lib/requests/store.ts` and the helper need to change.
+
+## Automated matching pipeline (future, in the lab)
 
 ```
 image ──▶ analyzeInspiration() ──▶ searchProducts() ──▶ rankProducts() ──▶ results

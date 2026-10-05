@@ -1,0 +1,58 @@
+{
+  "_note": "DEVELOPMENT DEMO ONLY. Fictional products with no real listings, used to test the request page. Attach with: npm run curate -- demo <request-id>",
+  "curatorName": "Demo curator",
+  "summary": "This is a demo shortlist for testing the page layout. Real shortlists are hand-picked for each request.",
+  "products": [
+    {
+      "id": "demo-1",
+      "isDemo": true,
+      "title": "Demo pick — square-neck fitted top",
+      "image": { "url": null, "alt": "Demo placeholder: no product photo" },
+      "taobaoUrl": null,
+      "priceCny": 59,
+      "convertedPrice": { "amount": 38, "currency": "MYR" },
+      "shop": { "name": "Demo Shop A (fictional)", "qualityNote": "Placeholder shop note — real notes describe shop age, photo honesty and service." },
+      "reviewNote": "Placeholder review summary — real notes summarise what buyers say about fabric, colour and fit.",
+      "availableSizes": ["S", "M", "L"],
+      "sizingNote": "Placeholder sizing note — real notes compare the size chart with your measurements.",
+      "whyItMatches": "Placeholder reason — real picks explain which details match your inspiration.",
+      "matchType": "exact-ish",
+      "curatorNote": "Demo item for development.",
+      "tags": ["demo"]
+    },
+    {
+      "id": "demo-2",
+      "isDemo": true,
+      "title": "Demo pick — low-rise maxi skirt",
+      "image": { "url": null, "alt": "Demo placeholder: no product photo" },
+      "taobaoUrl": null,
+      "priceCny": 119,
+      "convertedPrice": { "amount": 77, "currency": "MYR" },
+      "shop": { "name": "Demo Shop B (fictional)", "qualityNote": "Placeholder shop note." },
+      "reviewNote": "Placeholder review summary.",
+      "availableSizes": ["S", "M", "L", "XL"],
+      "sizingNote": "Placeholder sizing note.",
+      "whyItMatches": "Placeholder reason.",
+      "matchType": "similar",
+      "curatorNote": "",
+      "tags": ["demo"]
+    },
+    {
+      "id": "demo-3",
+      "isDemo": true,
+      "title": "Demo pick — relaxed knit cardigan",
+      "image": { "url": null, "alt": "Demo placeholder: no product photo" },
+      "taobaoUrl": null,
+      "priceCny": 98,
+      "convertedPrice": null,
+      "shop": { "name": "Demo Shop C (fictional)", "qualityNote": "Placeholder shop note." },
+      "reviewNote": "Placeholder review summary.",
+      "availableSizes": null,
+      "sizingNote": "Placeholder: one size.",
+      "whyItMatches": "Placeholder reason.",
+      "matchType": "vibe",
+      "curatorNote": "",
+      "tags": ["demo"]
+    }
+  ]
+}

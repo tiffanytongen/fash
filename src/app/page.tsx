@@ -14,8 +14,8 @@ const STEPS = [
   },
   {
     n: "02",
-    title: "Discover in English",
-    body: "Browse curated Chinese fashion with English titles, descriptions and the details that matter before you buy.",
+    title: "We hand-pick on Taobao",
+    body: "A real person searches Taobao for your look and shortlists 3–5 options in English, with shop and review notes.",
   },
   {
     n: "03",
@@ -48,7 +48,7 @@ export default async function HomePage() {
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <Link href="/inspiration" className="underline decoration-line underline-offset-4 hover:decoration-ink">
-              Or upload an inspiration image
+              Or get a hand-picked shortlist
             </Link>
             <Link href="/discover" className="text-muted hover:text-ink">
               Browse everything →
@@ -143,14 +143,14 @@ export default async function HomePage() {
           Have a board full of looks you can&apos;t find?
         </h2>
         <p className="mx-auto mt-4 max-w-md text-sm text-paper/70">
-          Upload one look and we&apos;ll suggest Taobao keywords and rank the closest pieces. Image
-          analysis is a demo for now.
+          Send us one look and your size. A person searches Taobao for you and hand-picks 3–5 options,
+          with notes on the shop, reviews and fit.
         </p>
         <Link
           href="/inspiration"
           className="mt-8 inline-flex h-12 items-center rounded-full bg-paper px-7 text-sm text-ink"
         >
-          Find the look
+          Request a shortlist
         </Link>
       </section>
     </>

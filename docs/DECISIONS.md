@@ -71,3 +71,25 @@ products(id text pk, title text, original_title text, description text,
 **Decision:** Per dimension score, then a weighted average: garment 35%, colour 20%, silhouette 15%, details 15%, style 10%, material 5%. Set dimensions use the *overlap coefficient* (shared ÷ smaller set), because an outfit analysis lists several garments while a product is one. Dimensions the analysis leaves empty or "unknown" are skipped. Words are normalised first (`vocabulary.ts`: "minimalist" → minimal, charcoal → grey). Matches under 30% are hidden; display is capped at 99%.
 **Why:** Simple, explainable, and every point of the score can be traced to a reason shown to the user.
 **Trade-off:** It's only as good as the metadata. It can't see that two items *look* alike.
+
+### 015 — Pivot the MVP to a manual concierge
+**Decision:** The main flow is now *request → a person curates → shopper sees shortlist*. Automated matching moved to `/labs/auto-match` (code kept, not linked).
+**Why:** The riskiest assumption is whether people want curated Taobao picks at all. A concierge tests that with real recommendations, before we spend on AI and retrieval.
+**Rule:** Nothing on the live flow may imply automated analysis or matching.
+
+### 016 — One output shape for manual and automated curation
+**Decision:** `CuratedResult` (in `src/types/curation.ts`) is what the shopper sees, whoever made it. It has `source: "manual" | "assisted" | "automated"`.
+**Why:** Automation can be added behind the same request page. First as suggestions to the curator ("assisted"), later end-to-end ("automated"). Every manual shortlist we create is also labelled training and evaluation data for that future system.
+
+### 017 — Development-only file store
+**Decision:** `src/lib/requests/store.ts` saves requests, images and shortlists as files in `.data/` (git-ignored). `scripts/curate.mjs` edits the same files.
+**Why:** No database yet, by request. It's enough to prove the flow locally.
+**Limits:** It does not work on serverless hosting (read-only filesystem; the API returns 503). Real users need a database before launch. Only `store.ts` (and the CLI) need to change. Paths are marked `turbopackIgnore` so deploy builds don't bundle the whole project.
+
+### 018 — Private-by-link request pages
+**Decision:** Request IDs are random (`req_` + 16 hex characters). Anyone with the link can see the request and its image; pages are `noindex`.
+**Why:** No accounts yet. Unguessable links are the simplest access control. Revisit when accounts or contact details are added.
+
+### 019 — Curation helper instead of an admin panel
+**Decision:** A small CLI (`npm run curate -- list | show | status | attach | demo`) rather than an admin UI. Shortlists are JSON files copied from `scripts/curation-template.json`. The helper requires 3–5 products and real https Taobao/Tmall links (only items marked `isDemo` may omit them).
+**Why:** Fastest thing that works for one curator, and nothing to secure. Build an admin UI only if curation volume justifies it.

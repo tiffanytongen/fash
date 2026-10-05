@@ -143,7 +143,14 @@ function Preferences({ request }: { request: CurationRequest }) {
   const rows: [string, string | null][] = [
     ["Looking for", MATCH_MODE_LABELS[request.matchMode].title],
     ["What you like", request.note],
-    ["Budget per item", budget.min !== null ? `${money(budget.min)}–${money(budget.max)}` : `Up to ${money(budget.max)}`],
+    [
+      "Budget per item",
+      budget.min !== null && budget.max !== null
+        ? `${money(budget.min)}–${money(budget.max)}`
+        : budget.max !== null
+          ? `Up to ${money(budget.max)}`
+          : `${money(budget.min ?? 0)}+`,
+    ],
     ["Usual size", request.usualSize],
     ["Fit", FIT_LABELS[request.fitPreference]],
     ["Measurements", measurementText],
@@ -170,26 +177,50 @@ function Preferences({ request }: { request: CurationRequest }) {
 }
 
 function PendingState({ status }: { status: RequestStatus }) {
+  const steps = [
+    { title: "We read your request", body: "Your look, budget, size and notes." },
+    { title: "We search Taobao by hand", body: "Checking shops, reviews and size charts." },
+    { title: "Your 3–5 picks appear here", body: "Each with why we chose it and sizing advice." },
+  ];
+  const current = status === "reviewing" ? 1 : 0;
   return (
-    <div className="rounded-[28px] border border-dashed border-line px-6 py-14 text-center md:px-12 md:py-20">
+    <div className="rounded-[28px] bg-card p-6 md:p-10">
       <p className="text-xs uppercase tracking-[0.14em] text-muted">{STATUS_LABELS[status]}</p>
-      <h2 id="picks-heading" className="mx-auto mt-3 max-w-md font-serif text-3xl leading-tight md:text-4xl">
+      <h2 id="picks-heading" className="mt-2 font-serif text-3xl leading-tight md:text-4xl">
         We&apos;ve got your request.
       </h2>
-      <p className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-muted">
-        Your curated Taobao picks will be added here manually. A person is{" "}
-        {status === "reviewing" ? "searching Taobao for you now" : "going to review your look and search Taobao for you"}
-        , then hand-pick 3–5 options with shop, review and sizing notes.
+      <p className="mt-2 max-w-md text-[15px] leading-relaxed text-muted">
+        Your curated Taobao picks will be added here manually. A person chooses every one.
       </p>
-      <p className="mx-auto mt-6 max-w-sm text-xs text-muted">
-        Nothing is matched automatically. Bookmark this page and check back — it updates when your picks are ready.
-      </p>
-      <Link
-        href="/discover"
-        className="mt-8 inline-flex h-12 items-center rounded-full border border-line px-6 text-sm hover:border-ink"
-      >
-        Browse while you wait
-      </Link>
+
+      <ol className="mt-8 space-y-5">
+        {steps.map((step, i) => (
+          <li key={step.title} className="flex gap-4">
+            <span
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm ${
+                i < current ? "bg-ink text-paper" : i === current ? "bg-ink text-paper ring-4 ring-line" : "bg-paper text-muted"
+              }`}
+              aria-hidden
+            >
+              {i < current ? "✓" : i + 1}
+            </span>
+            <div className={i > current ? "opacity-60" : ""}>
+              <p className="text-[15px] text-ink">
+                {step.title}
+                {i === current && <span className="ml-2 text-xs text-accent">in progress</span>}
+              </p>
+              <p className="text-sm text-muted">{step.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted">Bookmark this page — it updates when your picks are ready.</p>
+        <Link href="/discover" className="text-sm underline underline-offset-4 hover:text-ink">
+          Browse while you wait
+        </Link>
+      </div>
     </div>
   );
 }

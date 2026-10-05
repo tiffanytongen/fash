@@ -65,7 +65,7 @@ async function list() {
   rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   for (const r of rows) {
     const picks = (await exists(path.join(CURATIONS, `${r.id}.json`))) ? "has picks" : "no picks";
-    const budget = `${r.budget.currency} ${r.budget.min ?? 0}–${r.budget.max}`;
+    const budget = `${r.budget.currency} ${r.budget.min ?? 0}–${r.budget.max ?? "+"}`;
     console.log(
       `${r.id}  ${r.createdAt.slice(0, 16).replace("T", " ")}  ${r.status.padEnd(9)}  ${picks.padEnd(9)}  ` +
         `${r.matchMode.padEnd(12)}  size ${r.usualSize.padEnd(3)}  ${budget}`,

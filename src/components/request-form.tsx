@@ -13,7 +13,7 @@ import {
 import { MAX_TEXT, validateRequest, type FieldErrors, type RequestFormValues } from "@/lib/requests/validate";
 import { rememberRequest, useMyRequests } from "@/lib/requests/my-requests";
 import { resizeImage } from "@/lib/resize-image";
-import { CloseIcon, UploadIcon } from "./icons";
+import { UploadIcon } from "./icons";
 
 // Concierge request form: one image + a few preferences → POST /api/requests.
 // Nothing is analysed or matched automatically; a person curates the picks.
@@ -38,6 +38,22 @@ const EMPTY: RequestFormValues = {
 
 type Phase = "editing" | "submitting" | "submitted";
 
+// Budget presets per item. "Custom" reveals exact min/max fields.
+const BUDGET_PRESETS: Record<string, { label: string; min: string; max: string }[]> = {
+  MYR: [
+    { label: "Under RM50", min: "", max: "50" },
+    { label: "RM50–100", min: "50", max: "100" },
+    { label: "RM100–200", min: "100", max: "200" },
+    { label: "RM200+", min: "200", max: "" },
+  ],
+  AUD: [
+    { label: "Under A$20", min: "", max: "20" },
+    { label: "A$20–40", min: "20", max: "40" },
+    { label: "A$40–80", min: "40", max: "80" },
+    { label: "A$80+", min: "80", max: "" },
+  ],
+};
+
 export function RequestForm() {
   const [values, setValues] = useState<RequestFormValues>(EMPTY);
   const [image, setImage] = useState<{ file: File; url: string } | null>(null);
@@ -47,6 +63,7 @@ export function RequestForm() {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [measurementsOpen, setMeasurementsOpen] = useState(false);
+  const [customBudget, setCustomBudget] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -78,6 +95,7 @@ export function RequestForm() {
   function showErrors(next: FieldErrors) {
     setErrors(next);
     if (next.heightCm || next.bustCm || next.waistCm || next.hipsCm) setMeasurementsOpen(true);
+    if (next.budgetMin || (next.budgetMax && next.budgetMax !== "Choose a budget per item.")) setCustomBudget(true);
     // Move focus to the first problem so it's visible on small screens.
     requestAnimationFrame(() => {
       const first = formRef.current?.querySelector<HTMLElement>("[aria-invalid=true], [data-invalid=true]");
@@ -127,6 +145,7 @@ export function RequestForm() {
     setFormError(null);
     setRequestId(null);
     setMeasurementsOpen(false);
+    setCustomBudget(false);
     setPhase("editing");
   }
 
@@ -135,43 +154,47 @@ export function RequestForm() {
   }
 
   const submitting = phase === "submitting";
+  const presets = BUDGET_PRESETS[values.budgetCurrency] ?? BUDGET_PRESETS.MYR;
+  const activePreset = customBudget
+    ? null
+    : presets.find((p) => p.min === values.budgetMin && p.max === values.budgetMax) ?? null;
+  const budgetError = errors.budgetMin ?? errors.budgetMax ?? errors.budgetCurrency;
+  const pickBudget = (min: string, max: string) => {
+    setValues((v) => ({ ...v, budgetMin: min, budgetMax: max }));
+    setErrors((e) => ({ ...e, budgetMin: undefined, budgetMax: undefined }));
+  };
 
   return (
     <div className="mx-auto max-w-xl">
-      <form ref={formRef} onSubmit={submit} noValidate className="space-y-10">
-        {/* 1 ─ Image */}
-        <Section step="01" title="Your inspiration" hint="One screenshot or photo of the look you want.">
+      <form ref={formRef} onSubmit={submit} noValidate>
+        {/* ── Image ─────────────────────────────────────────── */}
+        <Question title="Your inspiration">
           {image ? (
-            <figure className="relative overflow-hidden rounded-[28px] bg-line/50">
+            <div className="flex items-center gap-4 rounded-3xl bg-card p-3">
               {/* next/image can't optimise local blob: URLs. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={image.url}
                 alt={`Your inspiration: ${image.file.name}`}
-                className="block max-h-[420px] w-full object-cover"
+                className="h-28 w-22 shrink-0 rounded-2xl object-cover"
               />
-              <div className="absolute right-3 top-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => inputRef.current?.click()}
-                  className="h-9 rounded-full bg-card/90 px-4 text-xs text-ink shadow-sm"
-                >
-                  Change
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setImage(null)}
-                  aria-label="Remove image"
-                  className="grid h-9 w-9 place-items-center rounded-full bg-card/90 text-ink shadow-sm"
-                >
-                  <CloseIcon width={16} height={16} />
-                </button>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-ink">{image.file.name}</p>
+                <div className="mt-2 flex gap-4 text-sm">
+                  <button type="button" onClick={() => inputRef.current?.click()} className="underline underline-offset-4">
+                    Change
+                  </button>
+                  <button type="button" onClick={() => setImage(null)} className="text-muted hover:text-ink">
+                    Remove
+                  </button>
+                </div>
               </div>
-            </figure>
+            </div>
           ) : (
-            <div
+            <button
+              type="button"
               data-invalid={errors.image ? true : undefined}
-              tabIndex={-1}
+              onClick={() => inputRef.current?.click()}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragging(true);
@@ -182,20 +205,20 @@ export function RequestForm() {
                 setDragging(false);
                 chooseImage(e.dataTransfer.files);
               }}
-              className={`rounded-[28px] border-2 border-dashed px-6 py-10 text-center outline-none transition-colors ${
-                dragging ? "border-ink bg-card" : errors.image ? "border-accent" : "border-line"
+              className={`flex w-full items-center gap-4 rounded-3xl p-4 text-left transition-colors ${
+                dragging ? "bg-ink text-paper" : errors.image ? "bg-accent-soft" : "bg-card hover:bg-line/60"
               }`}
             >
-              <UploadIcon width={26} height={26} className="mx-auto text-muted" />
-              <p className="mt-3 text-sm text-muted">From Pinterest, Instagram or Xiaohongshu · up to 10 MB</p>
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="mt-5 inline-flex h-11 items-center rounded-full bg-ink px-6 text-sm text-paper"
-              >
-                Choose an image
-              </button>
-            </div>
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-ink text-paper">
+                <UploadIcon width={22} height={22} />
+              </span>
+              <span>
+                <span className="block text-[15px] font-medium">Add a photo or screenshot</span>
+                <span className={`block text-sm ${dragging ? "text-paper/70" : "text-muted"}`}>
+                  Pinterest, Instagram, Xiaohongshu…
+                </span>
+              </span>
+            </button>
           )}
           <input
             ref={inputRef}
@@ -211,73 +234,95 @@ export function RequestForm() {
           />
           <FieldError message={errors.image} />
 
-          <TextArea
-            id="note"
-            label="What do you like about this look?"
-            optional
-            placeholder="e.g. the square neckline and the long skirt"
-            value={values.note}
-            onChange={set("note")}
-            error={errors.note}
-          />
-        </Section>
+          <Reveal label="Add what you love about it" open={Boolean(values.note || errors.note)}>
+            <TextArea
+              id="note"
+              label="What do you like about this look?"
+              placeholder="e.g. the square neckline and the long skirt"
+              value={values.note}
+              onChange={set("note")}
+              error={errors.note}
+            />
+          </Reveal>
+        </Question>
 
-        {/* 2 ─ Match mode */}
-        <Section step="02" title="How close should we go?">
+        {/* ── Match mode ────────────────────────────────────── */}
+        <Question title="How close should we go?">
           <fieldset>
             <legend className="sr-only">Matching preference</legend>
-            <div className="grid gap-3 sm:grid-cols-2" data-invalid={errors.matchMode ? true : undefined} tabIndex={-1}>
-              {MATCH_MODES.map((mode) => (
-                <label
-                  key={mode}
-                  className={`cursor-pointer rounded-3xl border p-5 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink ${
-                    values.matchMode === mode ? "border-ink bg-ink text-paper" : "border-line bg-card hover:border-ink"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="matchMode"
-                    value={mode}
-                    checked={values.matchMode === mode}
-                    onChange={() => set("matchMode")(mode)}
-                    className="sr-only"
-                  />
-                  <span className="block font-serif text-2xl">{MATCH_MODE_LABELS[mode].title}</span>
-                  <span className={`mt-1 block text-sm ${values.matchMode === mode ? "text-paper/75" : "text-muted"}`}>
-                    {MATCH_MODE_LABELS[mode].blurb}
-                  </span>
-                </label>
-              ))}
+            <div className="grid grid-cols-2 gap-2" data-invalid={errors.matchMode ? true : undefined} tabIndex={-1}>
+              {MATCH_MODES.map((mode) => {
+                const on = values.matchMode === mode;
+                return (
+                  <label
+                    key={mode}
+                    className={`cursor-pointer rounded-3xl p-4 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink ${
+                      on ? "bg-ink text-paper" : "bg-card hover:bg-line/60"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="matchMode"
+                      value={mode}
+                      checked={on}
+                      onChange={() => set("matchMode")(mode)}
+                      className="sr-only"
+                    />
+                    <span className="block font-serif text-xl leading-tight">{MATCH_MODE_LABELS[mode].title}</span>
+                    <span className={`mt-1 block text-xs leading-snug ${on ? "text-paper/70" : "text-muted"}`}>
+                      {MATCH_MODE_LABELS[mode].blurb}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
           <FieldError message={errors.matchMode} />
-        </Section>
+        </Question>
 
-        {/* 3 ─ Budget */}
-        <Section step="03" title="Budget per item">
-          <div className="grid grid-cols-[auto_1fr_1fr] items-end gap-3">
-            <label className="block">
-              <span className="mb-1.5 block text-xs text-muted">Currency</span>
-              <select
-                value={values.budgetCurrency}
-                onChange={(e) => set("budgetCurrency")(e.target.value)}
-                className="h-12 rounded-2xl border border-line bg-card px-3 text-[15px] outline-none focus:border-ink"
-              >
-                {BUDGET_CURRENCIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c === "MYR" ? "RM (MYR)" : "A$ (AUD)"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <NumberInput id="budgetMin" label="Min (optional)" value={values.budgetMin} onChange={set("budgetMin")} error={errors.budgetMin} />
-            <NumberInput id="budgetMax" label="Max" value={values.budgetMax} onChange={set("budgetMax")} error={errors.budgetMax} />
+        {/* ── Budget ────────────────────────────────────────── */}
+        <Question
+          title="Budget per item"
+          aside={
+            <div className="flex rounded-full bg-card p-0.5 text-xs" role="group" aria-label="Currency">
+              {BUDGET_CURRENCIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={values.budgetCurrency === c}
+                  onClick={() => {
+                    setValues((v) => ({ ...v, budgetCurrency: c, budgetMin: "", budgetMax: "" }));
+                    setCustomBudget(false);
+                  }}
+                  className={`rounded-full px-3 py-1.5 ${values.budgetCurrency === c ? "bg-ink text-paper" : "text-muted"}`}
+                >
+                  {c === "MYR" ? "RM" : "A$"}
+                </button>
+              ))}
+            </div>
+          }
+        >
+          <div className="flex flex-wrap gap-2" data-invalid={budgetError ? true : undefined} tabIndex={-1}>
+            {presets.map((p) => (
+              <Chip key={p.label} on={activePreset === p} onClick={() => { setCustomBudget(false); pickBudget(p.min, p.max); }}>
+                {p.label}
+              </Chip>
+            ))}
+            <Chip on={customBudget} onClick={() => { setCustomBudget(true); pickBudget("", ""); }}>
+              Custom
+            </Chip>
           </div>
-          <FieldError message={errors.budgetMin ?? errors.budgetMax ?? errors.budgetCurrency} />
-        </Section>
+          {customBudget && (
+            <div className="grid grid-cols-2 gap-3">
+              <NumberInput id="budgetMin" label="Min (optional)" value={values.budgetMin} onChange={set("budgetMin")} error={errors.budgetMin} />
+              <NumberInput id="budgetMax" label="Max" value={values.budgetMax} onChange={set("budgetMax")} error={errors.budgetMax} />
+            </div>
+          )}
+          <FieldError message={budgetError} />
+        </Question>
 
-        {/* 4 ─ Size & fit */}
-        <Section step="04" title="Size & fit">
+        {/* ── Size & fit ────────────────────────────────────── */}
+        <Question title="Your usual size">
           <ChipGroup
             name="usualSize"
             legend="Usual clothing size"
@@ -286,6 +331,9 @@ export function RequestForm() {
             onChange={set("usualSize")}
             error={errors.usualSize}
           />
+        </Question>
+
+        <Question title="How do you like it to fit?">
           <ChipGroup
             name="fitPreference"
             legend="Preferred fit"
@@ -294,49 +342,43 @@ export function RequestForm() {
             onChange={set("fitPreference")}
             error={errors.fitPreference}
           />
-
-          <details
-            className="group rounded-3xl border border-line bg-card px-5 py-4"
+          <Reveal
+            label="Add measurements"
+            hint="helps with Chinese sizing"
             open={measurementsOpen}
-            onToggle={(e) => setMeasurementsOpen(e.currentTarget.open)}
+            onOpen={() => setMeasurementsOpen(true)}
           >
-            <summary className="cursor-pointer list-none text-sm">
-              <span className="text-ink">Add measurements</span>{" "}
-              <span className="text-muted">(optional, helps with Chinese sizing)</span>
-              <span className="float-right text-muted transition-transform group-open:rotate-45" aria-hidden>
-                +
-              </span>
-            </summary>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <NumberInput id="heightCm" label="Height (cm)" value={values.heightCm} onChange={set("heightCm")} error={errors.heightCm} />
               <NumberInput id="bustCm" label="Bust (cm)" value={values.bustCm} onChange={set("bustCm")} error={errors.bustCm} />
               <NumberInput id="waistCm" label="Waist (cm)" value={values.waistCm} onChange={set("waistCm")} error={errors.waistCm} />
               <NumberInput id="hipsCm" label="Hips (cm)" value={values.hipsCm} onChange={set("hipsCm")} error={errors.hipsCm} />
             </div>
             <FieldError message={errors.heightCm ?? errors.bustCm ?? errors.waistCm ?? errors.hipsCm} />
-          </details>
-        </Section>
+          </Reveal>
+        </Question>
 
-        {/* 5 ─ Notes */}
-        <Section step="05" title="Anything else?">
-          <TextArea
-            id="extraNotes"
-            label="Notes for your curator"
-            optional
-            placeholder="e.g. I want the skirt but not the top · no polyester · under RM100"
-            value={values.extraNotes}
-            onChange={set("extraNotes")}
-            error={errors.extraNotes}
-          />
-        </Section>
+        {/* ── Notes ─────────────────────────────────────────── */}
+        <div className="border-t border-line py-6">
+          <Reveal label="Add notes for your curator" hint="e.g. skirt only, no polyester" open={Boolean(values.extraNotes || errors.extraNotes)}>
+            <TextArea
+              id="extraNotes"
+              label="Notes for your curator"
+              placeholder="e.g. I want the skirt but not the top · no polyester · under RM100"
+              value={values.extraNotes}
+              onChange={set("extraNotes")}
+              error={errors.extraNotes}
+            />
+          </Reveal>
+        </div>
 
         {formError && (
-          <p role="alert" className="rounded-2xl bg-accent-soft px-4 py-3 text-sm text-accent">
+          <p role="alert" className="mb-4 rounded-2xl bg-accent-soft px-4 py-3 text-sm text-accent">
             {formError}
           </p>
         )}
 
-        <div>
+        <div className="pt-2">
           <button
             type="submit"
             disabled={submitting}
@@ -346,8 +388,6 @@ export function RequestForm() {
           </button>
           <p className="mt-3 text-center text-xs leading-relaxed text-muted">
             A person hand-picks your shortlist from Taobao — nothing is matched automatically.
-            <br />
-            Your image is kept only to curate this request.
           </p>
         </div>
       </form>
@@ -429,16 +469,48 @@ function MyRequestsList() {
 
 // ── Small form building blocks ───────────────────────────────────────────────
 
-function Section({ step, title, hint, children }: { step: string; title: string; hint?: string; children: React.ReactNode }) {
+/** One question: a title row and its answer controls, separated by hairlines. */
+function Question({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="space-y-4">
-      <header>
-        <p className="text-xs tracking-[0.2em] text-muted">{step}</p>
-        <h2 className="mt-1 font-serif text-3xl">{title}</h2>
-        {hint && <p className="mt-1 text-sm text-muted">{hint}</p>}
-      </header>
+    <section className="space-y-3 border-t border-line py-6 first:border-t-0 first:pt-0">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-serif text-2xl">{title}</h2>
+        {aside}
+      </div>
       {children}
     </section>
+  );
+}
+
+/** Hides an optional field behind a small "+ label" link until it's needed. */
+function Reveal({
+  label,
+  hint,
+  open,
+  onOpen,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  open: boolean;
+  onOpen?: () => void;
+  children: React.ReactNode;
+}) {
+  const [opened, setOpened] = useState(false);
+  if (open || opened) return <div className="pt-1">{children}</div>;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setOpened(true);
+        onOpen?.();
+      }}
+      className="text-sm text-ink underline-offset-4 hover:underline"
+    >
+      <span aria-hidden>+ </span>
+      {label}
+      {hint && <span className="text-muted"> · {hint}</span>}
+    </button>
   );
 }
 
@@ -450,7 +522,6 @@ function FieldError({ message }: { message?: string }) {
 function TextArea({
   id,
   label,
-  optional,
   placeholder,
   value,
   onChange,
@@ -458,7 +529,6 @@ function TextArea({
 }: {
   id: string;
   label: string;
-  optional?: boolean;
   placeholder?: string;
   value: string;
   onChange: (v: string) => void;
@@ -467,9 +537,7 @@ function TextArea({
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 flex justify-between text-sm">
-        <span>
-          {label} {optional && <span className="text-muted">(optional)</span>}
-        </span>
+        <span>{label}</span>
         <span className={`text-xs ${value.length > MAX_TEXT ? "text-accent" : "text-muted"}`}>
           {value.length}/{MAX_TEXT}
         </span>
@@ -477,12 +545,13 @@ function TextArea({
       <textarea
         id={id}
         rows={3}
+        autoFocus
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
         className={`w-full resize-none rounded-2xl border bg-card px-4 py-3 text-[15px] outline-none placeholder:text-muted/70 focus:border-ink ${
-          error ? "border-accent" : "border-line"
+          error ? "border-accent" : "border-transparent"
         }`}
       />
       <FieldError message={error} />
@@ -515,10 +584,23 @@ function NumberInput({
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={error ? true : undefined}
         className={`h-12 w-full rounded-2xl border bg-card px-4 text-[15px] outline-none focus:border-ink ${
-          error ? "border-accent" : "border-line"
+          error ? "border-accent" : "border-transparent"
         }`}
       />
     </label>
+  );
+}
+
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`h-11 rounded-full px-4 text-sm transition-colors ${on ? "bg-ink text-paper" : "bg-card hover:bg-line/60"}`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -539,13 +621,13 @@ function ChipGroup({
 }) {
   return (
     <fieldset>
-      <legend className="mb-2 text-sm">{legend}</legend>
+      <legend className="sr-only">{legend}</legend>
       <div className="flex flex-wrap gap-2" data-invalid={error ? true : undefined} tabIndex={-1}>
         {options.map((o) => (
           <label
             key={o.value}
-            className={`flex h-11 min-w-12 cursor-pointer items-center justify-center rounded-full border px-4 text-sm transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink ${
-              value === o.value ? "border-ink bg-ink text-paper" : "border-line bg-card hover:border-ink"
+            className={`flex h-11 min-w-12 cursor-pointer items-center justify-center rounded-full px-4 text-sm transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink ${
+              value === o.value ? "bg-ink text-paper" : "bg-card hover:bg-line/60"
             }`}
           >
             <input
@@ -560,9 +642,11 @@ function ChipGroup({
           </label>
         ))}
       </div>
-      <div className="mt-2">
-        <FieldError message={error} />
-      </div>
+      {error && (
+        <div className="mt-2">
+          <FieldError message={error} />
+        </div>
+      )}
     </fieldset>
   );
 }

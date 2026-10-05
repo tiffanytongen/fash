@@ -4,6 +4,18 @@ Newest entries at the top. Keep each entry short: what changed, what we learned,
 
 ---
 
+## 2026-10-05 — Cleaner request form and request page
+
+**Why:** Feedback: too many empty boxes made the form feel unfinished.
+
+**Changed**
+- Form: budget is now tap-to-choose ranges (RM/A$ toggle, "Custom" reveals min/max); optional note, measurements and curator notes hide behind "+ Add…" links; compact image picker; lighter, borderless controls. No empty text boxes show by default.
+- Budget model: `max` may be `null` ("RM200+"); at least one of min/max is required.
+- Request page: the dashed "pending" box is replaced by a "what happens next" card; picks without a photo no longer show an empty grey image block.
+
+**Verified**
+- Lint, typecheck, build clean; browser suite 88/88 (phone + desktop).
+
 ## 2026-10-05 — Pivot to concierge MVP
 
 **Why:** Validate demand for curated Taobao shortlists before automating.

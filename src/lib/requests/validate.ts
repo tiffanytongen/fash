@@ -67,8 +67,8 @@ export function validateRequest(raw: Partial<Record<keyof RequestFormValues, unk
 
   const max = optionalNumber(raw.budgetMax);
   const min = optionalNumber(raw.budgetMin);
-  if (max === undefined) errors.budgetMax = "Add your maximum budget per item.";
-  else if (Number.isNaN(max) || max <= 0) errors.budgetMax = "Enter a number above 0.";
+  if (max === undefined && min === undefined) errors.budgetMax = "Choose a budget per item.";
+  else if (max !== undefined && (Number.isNaN(max) || max <= 0)) errors.budgetMax = "Enter a number above 0.";
   if (min !== undefined && (Number.isNaN(min) || min < 0)) errors.budgetMin = "Enter a number of 0 or more.";
   if (!errors.budgetMin && !errors.budgetMax && min !== undefined && max !== undefined && min > max)
     errors.budgetMin = "Minimum can't be more than maximum.";
@@ -101,7 +101,7 @@ export function validateRequest(raw: Partial<Record<keyof RequestFormValues, unk
       budget: {
         currency: currency as CurationRequestInput["budget"]["currency"],
         min: min ?? null,
-        max: max as number,
+        max: max ?? null,
       },
       usualSize: usualSize as CurationRequestInput["usualSize"],
       measurements: hasMeasurements ? measurements : null,

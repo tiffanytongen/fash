@@ -45,7 +45,8 @@ export type InspirationImageRef = {
 /** What the shopper fills in. Shared by the form, the API and the store. */
 export type CurationRequestInput = {
   note: string | null;
-  budget: { currency: BudgetCurrency; min: number | null; max: number };
+  /** Per item. At least one of min/max is set; `max: null` means "and up". */
+  budget: { currency: BudgetCurrency; min: number | null; max: number | null };
   usualSize: UsualSize;
   measurements: Measurements | null;
   fitPreference: FitPreference;

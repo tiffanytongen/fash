@@ -25,13 +25,13 @@ export function CuratedProductCard({ product, index }: { product: CuratedProduct
 
   return (
     <article className="overflow-hidden rounded-[28px] bg-card">
-      <div className="grid gap-0 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        {/* Image */}
-        <div className="relative aspect-[4/5] bg-line/50 sm:aspect-auto sm:min-h-full">
-          {product.image.url ? (
-            // Curator-supplied listing photos come from external hosts (e.g. alicdn),
-            // which next/image would need configuring for. A plain <img> is enough here.
-            // eslint-disable-next-line @next/next/no-img-element
+      <div className={product.image.url ? "grid gap-0 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]" : ""}>
+        {/* Image — only when the curator added one; no empty placeholder blocks. */}
+        {product.image.url && (
+          <div className="relative aspect-[4/5] bg-line/50 sm:aspect-auto sm:min-h-full">
+            {/* Curator-supplied listing photos come from external hosts (e.g. alicdn),
+                which next/image would need configuring for. A plain <img> is enough here. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={product.image.url}
               alt={product.image.alt}
@@ -39,27 +39,28 @@ export function CuratedProductCard({ product, index }: { product: CuratedProduct
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover"
             />
-          ) : (
-            <div
-              role="img"
-              aria-label={product.image.alt}
-              className="absolute inset-0 grid place-items-center bg-gradient-to-br from-line/40 to-line text-xs uppercase tracking-[0.14em] text-muted"
-            >
-              {product.isDemo ? "Demo · no image" : "Image unavailable"}
-            </div>
-          )}
-          <span className="absolute left-3 top-3 rounded-full bg-card/95 px-2.5 py-1 text-[11px] font-medium text-ink">
-            #{index + 1} · {MATCH_TYPE_LABELS[product.matchType]}
-          </span>
-          {product.isDemo && (
-            <span className="absolute right-3 top-3 rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-accent">
-              Demo
+            <span className="absolute left-3 top-3 rounded-full bg-card/95 px-2.5 py-1 text-[11px] font-medium text-ink">
+              #{index + 1} · {MATCH_TYPE_LABELS[product.matchType]}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Details */}
         <div className="p-5 md:p-6">
+          {(!product.image.url || product.isDemo) && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {!product.image.url && (
+                <span className="rounded-full bg-paper px-2.5 py-1 text-[11px] font-medium text-ink">
+                  #{index + 1} · {MATCH_TYPE_LABELS[product.matchType]}
+                </span>
+              )}
+              {product.isDemo && (
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-accent">
+                  Demo
+                </span>
+              )}
+            </div>
+          )}
           <h3 className="font-serif text-2xl leading-tight">{product.title}</h3>
           {product.priceCny !== null && (
             <p className="mt-1.5 text-[15px]">
